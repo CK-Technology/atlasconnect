@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: atlasconnect-db
+    environment:
+      POSTGRES_DB: atlasconnect
+      POSTGRES_USER: atlasconnect
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atlasconnect"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # AtlasConnect Server
+  atlasconnect:
+    build: .
+    container_name: atlasconnect-server
+    environment:
+      ATLAS_DATABASE__URL: "postgresql://atlasconnect:${DB_PASSWORD:-changeme}@postgres:5432/atlasconnect"
+      ATLAS_SERVER__HOST: "0.0.0.0"
+      ATLAS_SERVER__PORT: "8080"
+      ATLAS_SECURITY__JWT_SECRET: "${JWT_SECRET:-your-super-secret-jwt-key}"
+      ATLAS_LOGGING__LEVEL: "${LOG_LEVEL:-info}"
+    volumes:
+      - ./web:/app/web:ro
+      - ./logs:/app/logs
+      - ./config.toml:/app/config.toml:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/v1/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: atlasconnect-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/atlasconnect.conf:/etc/nginx/conf.d/atlasconnect.conf:ro
+      - ./nginx/atlasconnect-common.conf:/etc/nginx/conf.d/atlasconnect-common.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro  # Mount SSL certificates if using HTTPS
+    depends_on:
+      - atlasconnect
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: atlasconnect-network
