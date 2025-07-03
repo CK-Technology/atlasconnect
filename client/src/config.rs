@@ -1,36 +1,63 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::env;
+use std::path::Path;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientConfig {
-    pub device_id: String,
-    pub device_name: String,
+    pub agent_id: String,
+    pub hostname: String,
     pub server_url: String,
     pub reconnect_interval: u64,
     pub heartbeat_interval: u64,
+    pub max_concurrent_sessions: u32,
+    pub log_level: String,
 }
 
 impl ClientConfig {
     pub fn new(server_url: String, device_name: Option<String>) -> Result<Self> {
         // Generate or load device ID
-        let device_id = Self::get_or_create_device_id()?;
+        let agent_id = Self::get_or_create_device_id()?;
         
         // Determine device name
-        let device_name = device_name.unwrap_or_else(|| {
+        let hostname = device_name.unwrap_or_else(|| {
             env::var("COMPUTERNAME")
                 .or_else(|_| env::var("HOSTNAME"))
                 .unwrap_or_else(|_| "Unknown Device".to_string())
         });
         
         Ok(ClientConfig {
-            device_id,
-            device_name,
+            agent_id,
+            hostname,
             server_url,
             reconnect_interval: 30, // seconds
             heartbeat_interval: 30, // seconds
+            max_concurrent_sessions: 5,
+            log_level: "info".to_string(),
         })
+    }
+    
+    pub fn load(path: &Path) -> Result<Self> {
+        if path.exists() {
+            let content = std::fs::read_to_string(path)?;
+            let config: Self = toml::from_str(&content)?;
+            Ok(config)
+        } else {
+            // Create default config
+            let config = Self::new(
+                "wss://relay.cktechx.com".to_string(),
+                None,
+            )?;
+            config.save(path)?;
+            Ok(config)
+        }
+    }
+
+    pub fn save(&self, path: &Path) -> Result<()> {
+        let content = toml::to_string_pretty(self)?;
+        std::fs::write(path, content)?;
+        Ok(())
     }
     
     fn get_or_create_device_id() -> Result<String> {

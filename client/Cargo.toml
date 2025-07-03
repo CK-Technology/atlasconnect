@@ -29,6 +29,19 @@ chrono.workspace = true
 
 # Cross-platform system info
 sysinfo = "0.30"
+hostname = "0.3"
+
+# Image processing and encoding
+png = "0.17"
+
+# Additional networking
+url = "2.0"
+
+# Async traits
+async-trait = "0.1"
+
+# Configuration
+toml = "0.8"
 
 # Screen capture and input simulation (platform-specific)
 [target.'cfg(windows)'.dependencies]

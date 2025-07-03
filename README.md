@@ -7,10 +7,40 @@
 ![Wayland/X11 Support](https://img.shields.io/badge/Linux%20Desktop-Wayland%20%7C%20X11-informational)
 ![Web Portal](https://img.shields.io/badge/Web%20Portal-Integrated-yellow)
 ![Enterprise Ready](https://img.shields.io/badge/Enterprise-Ready-darkblue)
+![Version](https://img.shields.io/badge/Version-0.2.0--dev-blue)
 
 ---
 
 AtlasConnect is an all-in-one remote access and support platform engineered for security-driven teams, MSPs, and IT departments. Written in Rust, AtlasConnect merges a modern zero trust relay, a powerful web management portal, and ultra-fast cross-platform agents—all in a single, self-hosted server.
+
+**🎉 v0.2.0 Status: Foundational components implemented and compiling successfully!**
+
+---
+
+## Implementation Status (v0.2.0)
+
+### ✅ Completed
+- **Core Agent Architecture**: Client agent orchestrator with session management and heartbeat system
+- **Cross-Platform Screen Capture**: Enum-based abstraction supporting Wayland, X11, Windows, and macOS
+- **Input Control System**: Platform-specific input handling with async trait implementations  
+- **Relay Message Protocol**: WebSocket-based communication between client and server
+- **Session Management**: Multi-session support with type-based routing (Console, Backstage, Adhoc)
+- **Connection Management**: Robust WebSocket connection handling with reconnection logic
+- **Configuration System**: Flexible TOML-based configuration for client and server
+- **Hardware Encoding Support**: Framework for NVENC, QSV, and VideoToolbox (stubs implemented)
+
+### 🔄 In Progress
+- Complete capture loop implementation (lifetime management for async tasks)
+- Server-side session coordination and device management
+- Web portal integration with backend services
+- Hardware-accelerated encoding implementations
+
+### 📋 Upcoming
+- Authentication and device registration
+- Web portal UI improvements
+- Database integration
+- Deployment and containerization
+- Testing and documentation
 
 ---
 

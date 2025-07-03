@@ -9,6 +9,8 @@ mod capture;
 mod config;
 mod connection;
 mod service;
+mod session;
+mod input;
 
 use crate::{
     agent::Agent,
@@ -97,42 +99,46 @@ async fn main() -> Result<()> {
 async fn start_agent(server_url: String, device_name: Option<String>) -> Result<()> {
     let config = ClientConfig::new(server_url, device_name)?;
     
-    info!("Device ID: {}", config.device_id);
+    info!("Device ID: {}", config.agent_id);
+    info!("Hostname: {}", config.hostname);
     info!("Connecting to: {}", config.server_url);
     
-    let mut agent = Agent::new(config).await?;
+    // Create and start the agent
+    let mut agent = Agent::new(config)?;
     
-    // Main connection loop with auto-reconnect
-    loop {
-        match agent.connect().await {
-            Ok(_) => {
-                info!("✅ Connected to AtlasConnect server");
-                
-                // Keep connection alive and handle commands
-                if let Err(e) = agent.run().await {
-                    error!("Agent error: {}", e);
-                }
-            }
-            Err(e) => {
-                warn!("❌ Connection failed: {}", e);
+    // Set up signal handling for graceful shutdown
+    let shutdown_signal = tokio::spawn(async {
+        tokio::signal::ctrl_c().await.unwrap();
+        info!("Received shutdown signal");
+    });
+    
+    // Start the agent with error recovery
+    tokio::select! {
+        result = agent.start() => {
+            match result {
+                Ok(()) => info!("Agent stopped normally"),
+                Err(e) => error!("Agent error: {}", e),
             }
         }
-        
-        info!("🔄 Reconnecting in 30 seconds...");
-        sleep(Duration::from_secs(30)).await;
+        _ = shutdown_signal => {
+            info!("Shutting down agent...");
+            let _ = agent.shutdown().await;
+        }
     }
+    
+    Ok(())
 }
 
 fn show_device_info() {
-    use sysinfo::{System, SystemExt};
+    use sysinfo::System;
     
     let mut sys = System::new_all();
     sys.refresh_all();
     
     println!("=== AtlasConnect Device Information ===");
-    println!("Hostname: {}", sys.host_name().unwrap_or_else(|| "Unknown".to_string()));
-    println!("OS: {} {}", sys.name().unwrap_or_else(|| "Unknown".to_string()), sys.os_version().unwrap_or_else(|| "Unknown".to_string()));
-    println!("Architecture: {}", sys.cpu_arch().unwrap_or_else(|| "Unknown".to_string()));
+    println!("Hostname: {}", System::host_name().unwrap_or_else(|| "Unknown".to_string()));
+    println!("OS: {} {}", System::name().unwrap_or_else(|| "Unknown".to_string()), System::os_version().unwrap_or_else(|| "Unknown".to_string()));
+    println!("Architecture: {}", System::cpu_arch().unwrap_or_else(|| "Unknown".to_string()));
     println!("Total Memory: {:.2} GB", sys.total_memory() as f64 / 1024.0 / 1024.0 / 1024.0);
     println!("CPU Count: {}", sys.cpus().len());
     
